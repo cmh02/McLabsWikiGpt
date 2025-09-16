@@ -32,7 +32,7 @@ WIKI EMBEDDER CLASS
 This class will handle fetching, parsing, chunking, and embedding all of the MCL Wiki pages.
 '''
 
-class WikiEmbedder():
+class MCL_WikiEmbedder():
 
 	# Class Constructor
 	def __init__(self, client: genai.Client=None):
