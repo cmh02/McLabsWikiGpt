@@ -1,0 +1,181 @@
+'''
+MCLabs Wiki GPT - 
+
+Author: Chris Hinkson @cmh02
+'''
+
+'''
+MODULE IMPORTS
+'''
+
+# System
+import os
+import pickle
+import dotenv
+
+# Vector Database
+import faiss
+
+# Data Handling
+import numpy as np
+
+# Web-Related
+import requests
+from bs4 import BeautifulSoup
+
+# Google API
+from google import genai
+from google.genai import types
+
+'''
+ENVIRONMENTAL VARIABLES
+'''
+
+# Load environment variables from .env file
+dotenv.load_dotenv()
+
+# Retrieve the Gemini API key from environment variables
+GOOGLE_GEMINI_API_KEY = os.getenv('GOOGLE_GEMINI_API_KEY')
+
+'''
+WIKI EMBEDDER CLASS
+
+This class will handle fetching, parsing, chunking, and embedding all of the MCL Wiki pages.
+'''
+
+class WikiEmbedder():
+
+	# Class Constructor
+	def __init__(self, client: genai.Client=None):
+
+		# Current file and directory paths
+		self.CURRENT_FILE_PATH = os.path.abspath(__file__)
+		self.CURRENT_DIR = os.path.dirname(self.CURRENT_FILE_PATH)
+		self.ROOT_DIR = os.path.dirname(self.CURRENT_DIR)
+
+		# Embeddings folder path
+		self.PATH_EMBEDDINGS = os.path.join(self.ROOT_DIR, 'embeddings/')
+		os.makedirs(self.PATH_EMBEDDINGS, exist_ok=True)
+
+		# MCL Wiki URL
+		self.MCL_WIKI_API_URL = "https://labs-mc.com/w/api.php"
+
+		# Make client if not provided
+		if client is None:
+			self.client = genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
+		else:
+			self.client = client
+
+	# Get a batch of page titles
+	def _getPageTitlesBatch(self, apcontinue=None, batch_size=10):
+		
+		# Define parameters and make API request
+		params = {
+			"action": "query",
+			"list": "allpages",
+			"format": "json",
+			"aplimit": batch_size,
+		}
+		if apcontinue:
+			params["apcontinue"] = apcontinue
+		request = requests.get(self.MCL_WIKI_API_URL, params=params).json()
+
+		# Extract titles and continuation token then return
+		titles = [page["title"] for page in request["query"]["allpages"]]
+		next_continue = request.get("continue", {}).get("apcontinue")
+		return titles, next_continue
+
+	# Fetch and parse a wiki page to extract text content
+	def _fetchPageContentBatch(self, titles: list[str]) -> list[str]:
+		
+		# Make list to hold page contents
+		contents = []
+
+		# Define parameters and make API requests
+		for title in titles:
+			params = {
+				"action": "parse",
+				"page": title,
+				"prop": "text",
+				"format": "json"
+			}
+			response = requests.get(self.MCL_WIKI_API_URL, params=params).json()
+
+			# Parse HTML content to extract text
+			contents.append(BeautifulSoup(markup=response["parse"]["text"]["*"], features="html.parser").get_text())
+			
+		# Return list of page contents
+		return contents
+
+	# Chunk text into smaller pieces for processing
+	def _chunkWikiPage(self, text, chunk_size=500, overlap=50):
+		
+		# Split text into words and yield chunks with overlap
+		chunks = []
+		words = text.split()
+		for i in range(0, len(words), chunk_size - overlap):
+			chunks.append(" ".join(words[i:i+chunk_size]))
+		return chunks
+
+	# Embed text chunk using Gemini API
+	def _embedChunks(self, chunks: list[str]) -> list[np.ndarray]:
+		
+		# Make embedding request and return as numpy array
+		response = self.client.models.embed_content(
+			model="text-embedding-004",
+			contents=chunks,
+			config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+		)
+		return [np.array(documentEmbedding.values) for documentEmbedding in response.embeddings]
+
+	def fetchAndEmbedWiki(self, batch_size=10):
+
+		# Initialize the apcontinue parameter for pagination
+		apcontinue = None
+		index = faiss.IndexFlatL2(768)
+		documents = []
+		while True:
+			
+			# Get the next batch of page titles
+			titles, apcontinue = self._getPageTitlesBatch(apcontinue, batch_size=10)
+
+			# Break the loop if no titles are returned
+			if not titles:
+				break
+			
+			# Get content chunks for all pages in the batch
+			allChunks = {}
+			allEmbeddings = {}
+			for title, content in zip(titles, self._fetchPageContentBatch(titles)):
+
+				# Get chunks and embeddings
+				allChunks[title] = self._chunkWikiPage(content)
+
+				# Embed all chunks in the batch
+				allEmbeddings[title] = self._embedChunks(allChunks[title])
+
+			# Flatten embeddings for FAISS
+			flatEmbeddings = [chunkEmbedding for pageEmbeddings in allEmbeddings.values() for chunkEmbedding in pageEmbeddings]
+			embeddingsMatrix = np.vstack(flatEmbeddings).astype('float32')
+			faiss.normalize_L2(embeddingsMatrix)
+			index.add(embeddingsMatrix)
+
+			# Flatten chunks into documents with titles
+			documents.extend([
+				{"title": pageTitle, "content": chunkText}
+				for pageTitle, chunkList in allChunks.items()
+				for chunkText in chunkList
+			])
+
+			print(f"Processed batch of {len(titles)} pages")
+
+			# Break the loop if there are no more pages to fetch
+			if not apcontinue:
+				break
+
+		print(f"FAISS index has {index.ntotal} vectors")
+
+		# Save the index and documents for later use
+		faiss.write_index(index, f"{self.PATH_EMBEDDINGS}wiki.index")
+		with open(f"{self.PATH_EMBEDDINGS}wiki_docs.pkl", "wb") as f:
+			pickle.dump(documents, f)
