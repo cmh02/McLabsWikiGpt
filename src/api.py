@@ -32,7 +32,7 @@ FLASK APP SETUP
 app = Flask(__name__)
 
 # Load environment variables from .env file if not in Railway environment
-if os.getenv("RAILWAY_ENVIRONMENT") is None:
+if os.getenv("RAILWAY_ENVIRONMENT_ID") is None:
     from dotenv import load_dotenv
     load_dotenv()
 
