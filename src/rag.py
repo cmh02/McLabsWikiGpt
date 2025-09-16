@@ -10,7 +10,6 @@ MODULE IMPORTS
 
 # System
 import os
-import dotenv
 
 # Vector Database
 import faiss
@@ -22,28 +21,7 @@ import numpy as np
 from google import genai
 
 # MCL Packages
-from docfetch import WikiEmbedder
-
-'''
-ENVIRONMENTAL VARIABLES
-'''
-
-# Load environment variables from .env file
-dotenv.load_dotenv()
-
-# Retrieve the Gemini API key from environment variables
-GOOGLE_GEMINI_API_KEY = os.getenv('GOOGLE_GEMINI_API_KEY')
-
-'''
-CLIENT SETUP
-'''
-client = genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
-
-'''
-LOAD INDEX AND DOCUMENTS
-'''
-InstanceWikiEmbedder = WikiEmbedder(client=client)
-InstanceWikiEmbedder.loadIndexAndDocuments()
+from docfetch import MCL_WikiEmbedder
 
 '''
 RAG CLASS
@@ -54,7 +32,7 @@ This class will handle actually performing RAG prompting and response generation
 class MCL_WikiRag():
 
 	# Class Constructor
-	def __init__(self, client: genai.Client=None, wikiEmbedder: WikiEmbedder=None):
+	def __init__(self, client: genai.Client=None, wikiEmbedder: MCL_WikiEmbedder=None):
 
 		# Make client if not provided
 		if client is None:
@@ -64,7 +42,7 @@ class MCL_WikiRag():
 
 		# Make WikiEmbedder instance if not provided
 		if wikiEmbedder is None:
-			self.wikiEmbedder = WikiEmbedder(client=self.client)
+			self.wikiEmbedder = MCL_WikiEmbedder(client=self.client)
 		else:
 			self.wikiEmbedder = wikiEmbedder
 
