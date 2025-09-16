@@ -122,12 +122,13 @@ def query():
 	if len(question) > 256:
 		return jsonify({"errormessage": "Question is too long (max 256 characters)!", "errorcode": 3}), 400
 
+	# Get the response from the RAG pipeline and return
+	result, topChunks = InstanceRag.queryPipeline(question)
+     
 	# Print for debugging
 	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
 		print(f"Answer to question {question}: {result}")	
 
-	# Get the response from the RAG pipeline and return
-	result, topChunks = InstanceRag.queryPipeline(question)
 	return jsonify({"answer": result, "context": topChunks})
 
 if __name__ == "__main__":
