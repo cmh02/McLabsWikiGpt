@@ -85,7 +85,7 @@ class WikiEmbedder():
 				allChunks[title] = self._chunkWikiPage(content)
 
 				# Embed all chunks in the batch
-				allEmbeddings[title] = self._embedChunks(allChunks[title])
+				allEmbeddings[title] = self.embedChunks(allChunks[title])
 
 			# Flatten embeddings for FAISS
 			flatEmbeddings = [chunkEmbedding for pageEmbeddings in allEmbeddings.values() for chunkEmbedding in pageEmbeddings]
@@ -123,6 +123,17 @@ class WikiEmbedder():
 		with open(f"{self.PATH_EMBEDDINGS}wiki_docs.pkl", "rb") as f:
 			self.documents = pickle.load(f)
 		print(f"Loaded index and {len(self.documents)} documents from disk")
+
+	# Embed text chunk using Gemini API
+	def embedChunks(self, chunks: list[str]) -> list[np.ndarray]:
+		
+		# Make embedding request and return as numpy array
+		response = self.client.models.embed_content(
+			model="text-embedding-004",
+			contents=chunks,
+			config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+		)
+		return [np.array(documentEmbedding.values) for documentEmbedding in response.embeddings]
 
 	# Get a batch of page titles
 	def _getPageTitlesBatch(self, apcontinue=None, batch_size=10):
@@ -174,14 +185,3 @@ class WikiEmbedder():
 		for i in range(0, len(words), chunk_size - overlap):
 			chunks.append(" ".join(words[i:i+chunk_size]))
 		return chunks
-
-	# Embed text chunk using Gemini API
-	def _embedChunks(self, chunks: list[str]) -> list[np.ndarray]:
-		
-		# Make embedding request and return as numpy array
-		response = self.client.models.embed_content(
-			model="text-embedding-004",
-			contents=chunks,
-			config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
-		)
-		return [np.array(documentEmbedding.values) for documentEmbedding in response.embeddings]
