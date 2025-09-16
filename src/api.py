@@ -102,22 +102,30 @@ API ENDPOINTS
 # Querying RAG via API
 @app.route("/query", methods=["POST"])
 def query():
-    
+
 	# Get the question from the request
-    data = request.get_json()
-    question = data.get("question")
+	data = request.get_json()
+	question = data.get("question")
+
+	# Print for debugging
+	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+		print(f"Received question: {question}")
 
 	# If no question provided, return error
-    if not question:
-        return jsonify({"error": "Missing 'question'"}), 400
-    
+	if not question:
+		return jsonify({"error": "Missing 'question'"}), 400
+
 	# If question is too long, return error
-    if len(question) > 256:
-        return jsonify({"errormessage": "Question is too long (max 256 characters)!", "errorcode": 3}), 400
+	if len(question) > 256:
+		return jsonify({"errormessage": "Question is too long (max 256 characters)!", "errorcode": 3}), 400
+
+	# Print for debugging
+	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+		print(f"Answer to question {question}: {result}")	
 
 	# Get the response from the RAG pipeline and return
-    result, topChunks = InstanceRag.queryPipeline(question)
-    return jsonify({"answer": result, "context": topChunks})
+	result, topChunks = InstanceRag.queryPipeline(question)
+	return jsonify({"answer": result, "context": topChunks})
 
 if __name__ == "__main__":
     # Railway will inject a $PORT env var
