@@ -10,7 +10,6 @@ MODULE IMPORTS
 
 # System
 import os
-import pickle
 import dotenv
 
 # Vector Database
@@ -19,13 +18,8 @@ import faiss
 # Data Handling
 import numpy as np
 
-# Web-Related
-import requests
-from bs4 import BeautifulSoup
-
 # Google API
 from google import genai
-from google.genai import types
 
 # MCL Packages
 from docfetch import WikiEmbedder
@@ -52,8 +46,24 @@ InstanceWikiEmbedder = WikiEmbedder(client=client)
 InstanceWikiEmbedder.loadIndexAndDocuments()
 
 '''
-RAG AND LM QUERYING
+RAG CLASS
+
+This class will handle actually performing RAG prompting and response generation.
 '''
+
+class MCL_Wiki_RAG():
+
+	# Class Constructor
+	def __init__(self, client: genai.Client=None, wiki_embedder: WikiEmbedder=None):
+
+		# Make client if not provided
+		if client is None:
+			self.client = genai.Client(api_key=os.getenv('GOOGLE_GEMINI_API_KEY'))
+		else:
+			self.client = client
+
+		# Load the Wiki Embedder instance
+		self.wiki_embedder = InstanceWikiEmbedder
 
 # Embed a user's query using Gemini
 def embedQuery(query):
