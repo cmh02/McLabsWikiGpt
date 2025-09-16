@@ -35,7 +35,7 @@ async def ask(interaction: discord.Interaction, question: str):
 	try:
 		# Make API request to the API endpoint and get response
 		payload = {"api_token": os.getenv("API_TOKEN"), "question": question, "include_context": "False"}
-		response = requests.post(os.getenv("RAILWAY_PUBLIC_DOMAIN"), json=payload)
+		response = requests.post(f"https://{os.getenv("RAILWAY_PUBLIC_DOMAIN")}", json=payload)
 		data = response.json()
 		
 		# Respond in Discord
