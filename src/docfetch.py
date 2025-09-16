@@ -59,6 +59,9 @@ class WikiEmbedder():
 		self.index = faiss.IndexFlatL2(768)
 		self.documents = []
 
+		# Print
+		print(f"New WikiEmbedder instance created!")
+
 	# Main function to fetch, chunk, embed, and index wiki pages
 	def fetchAndEmbedWiki(self, batch_size=10):
 
