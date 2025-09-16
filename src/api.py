@@ -21,8 +21,8 @@ from flask import Flask, request, jsonify
 from google import genai
 
 # MCL Packages
-from docfetch import MCL_WikiEmbedder
-from rag import MCL_WikiRag
+from src.docfetch import MCL_WikiEmbedder
+from src.rag import MCL_WikiRag
 
 '''
 FLASK APP SETUP

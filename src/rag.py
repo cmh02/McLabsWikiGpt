@@ -21,7 +21,7 @@ import numpy as np
 from google import genai
 
 # MCL Packages
-from docfetch import MCL_WikiEmbedder
+from src.docfetch import MCL_WikiEmbedder
 
 '''
 RAG CLASS
