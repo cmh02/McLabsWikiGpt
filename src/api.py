@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 # Flask
+import gunicorn
 from flask import Flask, request, jsonify
 
 # Google API
@@ -22,7 +23,6 @@ from google import genai
 # MCL Packages
 from docfetch import MCL_WikiEmbedder
 from rag import MCL_WikiRag
-
 
 '''
 FLASK APP SETUP
@@ -132,7 +132,4 @@ def query():
 
 if __name__ == "__main__":
     # Railway will inject a $PORT env var
-    port = int(os.environ.get("PORT", 5000))
-    
-    # Host 0.0.0.0 so external requests can reach it in deployment
-    app.run(debug=True, host="0.0.0.0", port=port)
+    print(f"Starting application on port {os.environ.get('PORT')}!")
