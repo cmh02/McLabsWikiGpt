@@ -11,7 +11,6 @@ MODULE IMPORTS
 # System
 import os
 import pickle
-import dotenv
 
 # Vector Database
 import faiss
@@ -26,16 +25,6 @@ from bs4 import BeautifulSoup
 # Google API
 from google import genai
 from google.genai import types
-
-'''
-ENVIRONMENTAL VARIABLES
-'''
-
-# Load environment variables from .env file
-dotenv.load_dotenv()
-
-# Retrieve the Gemini API key from environment variables
-GOOGLE_GEMINI_API_KEY = os.getenv('GOOGLE_GEMINI_API_KEY')
 
 '''
 WIKI EMBEDDER CLASS
@@ -62,9 +51,75 @@ class WikiEmbedder():
 
 		# Make client if not provided
 		if client is None:
-			self.client = genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
+			self.client = genai.Client(api_key=os.getenv('GOOGLE_GEMINI_API_KEY'))
 		else:
 			self.client = client
+
+		# Make index and document list
+		self.index = faiss.IndexFlatL2(768)
+		self.documents = []
+
+	# Main function to fetch, chunk, embed, and index wiki pages
+	def fetchAndEmbedWiki(self, batch_size=10):
+
+		# Initialize the apcontinue parameter for pagination
+		apcontinue = None
+		while True:
+			
+			# Get the next batch of page titles
+			titles, apcontinue = self._getPageTitlesBatch(apcontinue, batch_size=10)
+
+			# Break the loop if no titles are returned
+			if not titles:
+				break
+			
+			# Get content chunks for all pages in the batch
+			allChunks = {}
+			allEmbeddings = {}
+			for title, content in zip(titles, self._fetchPageContentBatch(titles)):
+
+				# Get chunks and embeddings
+				allChunks[title] = self._chunkWikiPage(content)
+
+				# Embed all chunks in the batch
+				allEmbeddings[title] = self._embedChunks(allChunks[title])
+
+			# Flatten embeddings for FAISS
+			flatEmbeddings = [chunkEmbedding for pageEmbeddings in allEmbeddings.values() for chunkEmbedding in pageEmbeddings]
+			embeddingsMatrix = np.vstack(flatEmbeddings).astype('float32')
+			faiss.normalize_L2(embeddingsMatrix)
+			self.index.add(embeddingsMatrix)
+
+			# Flatten chunks into documents with titles
+			self.documents.extend([
+				{"title": pageTitle, "content": chunkText}
+				for pageTitle, chunkList in allChunks.items()
+				for chunkText in chunkList
+			])
+
+			print(f"Processed batch of {len(titles)} pages")
+
+			# Break the loop if there are no more pages to fetch
+			if not apcontinue:
+				break
+
+		print(f"FAISS index has {self.index.ntotal} vectors")
+
+	# Save the FAISS index and documents to disk
+	def saveIndexAndDocuments(self):
+		# Save the index and documents for later use
+		faiss.write_index(self.index, f"{self.PATH_EMBEDDINGS}wiki.index")
+		with open(f"{self.PATH_EMBEDDINGS}wiki_docs.pkl", "wb") as f:
+			pickle.dump(self.documents, f)
+		print(f"Saved index and {len(self.documents)} documents to disk")
+
+	# Load the FAISS index and documents from disk
+	def loadIndexAndDocuments(self):
+		# Load the index and documents for later use
+		self.index = faiss.read_index(f"{self.PATH_EMBEDDINGS}wiki.index")
+		with open(f"{self.PATH_EMBEDDINGS}wiki_docs.pkl", "rb") as f:
+			self.documents = pickle.load(f)
+		print(f"Loaded index and {len(self.documents)} documents from disk")
 
 	# Get a batch of page titles
 	def _getPageTitlesBatch(self, apcontinue=None, batch_size=10):
@@ -127,55 +182,3 @@ class WikiEmbedder():
 			config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
 		)
 		return [np.array(documentEmbedding.values) for documentEmbedding in response.embeddings]
-
-	def fetchAndEmbedWiki(self, batch_size=10):
-
-		# Initialize the apcontinue parameter for pagination
-		apcontinue = None
-		index = faiss.IndexFlatL2(768)
-		documents = []
-		while True:
-			
-			# Get the next batch of page titles
-			titles, apcontinue = self._getPageTitlesBatch(apcontinue, batch_size=10)
-
-			# Break the loop if no titles are returned
-			if not titles:
-				break
-			
-			# Get content chunks for all pages in the batch
-			allChunks = {}
-			allEmbeddings = {}
-			for title, content in zip(titles, self._fetchPageContentBatch(titles)):
-
-				# Get chunks and embeddings
-				allChunks[title] = self._chunkWikiPage(content)
-
-				# Embed all chunks in the batch
-				allEmbeddings[title] = self._embedChunks(allChunks[title])
-
-			# Flatten embeddings for FAISS
-			flatEmbeddings = [chunkEmbedding for pageEmbeddings in allEmbeddings.values() for chunkEmbedding in pageEmbeddings]
-			embeddingsMatrix = np.vstack(flatEmbeddings).astype('float32')
-			faiss.normalize_L2(embeddingsMatrix)
-			index.add(embeddingsMatrix)
-
-			# Flatten chunks into documents with titles
-			documents.extend([
-				{"title": pageTitle, "content": chunkText}
-				for pageTitle, chunkList in allChunks.items()
-				for chunkText in chunkList
-			])
-
-			print(f"Processed batch of {len(titles)} pages")
-
-			# Break the loop if there are no more pages to fetch
-			if not apcontinue:
-				break
-
-		print(f"FAISS index has {index.ntotal} vectors")
-
-		# Save the index and documents for later use
-		faiss.write_index(index, f"{self.PATH_EMBEDDINGS}wiki.index")
-		with open(f"{self.PATH_EMBEDDINGS}wiki_docs.pkl", "wb") as f:
-			pickle.dump(documents, f)
