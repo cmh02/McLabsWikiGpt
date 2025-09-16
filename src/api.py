@@ -92,6 +92,7 @@ def api_checkLimits():
 
 @app.before_request
 def api_limitRequests():
+    print("test")
     ok, errorMessage, errorCode = api_checkLimits()
     if not ok:
         return jsonify({"errormessage": errorMessage, "errorcode": errorCode}), 429
@@ -102,6 +103,8 @@ API ENDPOINTS
 # Querying RAG via API
 @app.route("/query", methods=["POST"])
 def query():
+
+	print("test2")
 
 	# Get the question from the request
 	data = request.get_json()
