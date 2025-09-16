@@ -117,7 +117,7 @@ def query():
 
 	# Get the question from the request
 	question = data.get("question")
-	includeContext = data.get("include_context", False)
+	includeContext = data.get("include_context", "False")
 
 	# Print for debugging
 	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
@@ -139,7 +139,7 @@ def query():
 		print(f"Answer to question {question}: {result}")	
 
 	# Return the result
-	if not includeContext:
+	if includeContext in [False, "False", "false", 0, "0"]:
 		return jsonify({"answer": result})
 	else:
 		return jsonify({"answer": result, "context": topChunks})
