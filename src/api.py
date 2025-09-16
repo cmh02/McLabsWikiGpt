@@ -92,23 +92,32 @@ def api_checkLimits():
 
 @app.before_request
 def api_limitRequests():
-    print("test")
     ok, errorMessage, errorCode = api_checkLimits()
     if not ok:
         return jsonify({"errormessage": errorMessage, "errorcode": errorCode}), 429
 
 '''
-API ENDPOINTS
+API ENDPOINT
+
+There is a singular endpoint for querying the RAG system. Users can POST to /query with a JSON body containing:
+- "api_token": Your API token for authentication
+- "question": The question you want to ask (max 256 characters)
+- "include_context": (optional) Boolean to include context chunks in the response
 '''
 # Querying RAG via API
 @app.route("/query", methods=["POST"])
 def query():
 
-	print("test2")
+	# Get the request data
+	data = request.get_json()
+     
+	# Check API token
+	if data.get("api_token") != os.getenv("API_TOKEN"):
+		return jsonify({"error": "Invalid API token!"}), 401
 
 	# Get the question from the request
-	data = request.get_json()
 	question = data.get("question")
+	includeContext = data.get("include_context", False)
 
 	# Print for debugging
 	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
@@ -129,7 +138,11 @@ def query():
 	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
 		print(f"Answer to question {question}: {result}")	
 
-	return jsonify({"answer": result, "context": topChunks})
+	# Return the result
+	if not includeContext:
+		return jsonify({"answer": result})
+	else:
+		return jsonify({"answer": result, "context": topChunks})
 
 if __name__ == "__main__":
     # Railway will inject a $PORT env var
