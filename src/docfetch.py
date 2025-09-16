@@ -1,5 +1,5 @@
 '''
-MCLabs Wiki GPT - 
+MCLabs Wiki GPT - Document Fetch and Embedding
 
 Author: Chris Hinkson @cmh02
 '''
