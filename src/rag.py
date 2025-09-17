@@ -10,6 +10,7 @@ MODULE IMPORTS
 
 # System
 import os
+import datetime
 
 # Vector Database
 import faiss
@@ -76,13 +77,52 @@ class MCL_WikiRag():
 	# Retrieve top-K relevant chunks from FAISS index
 	def _retrieveChunks(self, queryVector, topK=5) -> list:
 		
-		# Normalize the query vector and perform the search
+		# Normalize the query vector
 		faiss.normalize_L2(queryVector.reshape(1, -1))
-		distances, indices = self.wikiEmbedder.index.search(queryVector.reshape(1, -1), topK)
-		retrieved = [self.wikiEmbedder.documents[i] for i in indices[0]]
+
+		# Create list for results
+		results = []
+		current_date = datetime.date.today()
+
+		# Get top K*2 nearest neighbors for resorting
+		distances, indices = self.wikiEmbedder.index.search(queryVector.reshape(1, -1), topK * 2)
+
+		# Sort results by type and date
+		for score, index in zip(distances[0], indices[0]):
+
+			# Get the document
+			doc = self.wikiEmbedder.documents[index]
+
+			# Modify score based on document type
+			if doc.get("source") == "faq":
+				# Apply FAQ boost
+				score *= int(os.getenv('RAG_HP_FAQSCOREBOOST', 1.2))
+
+				# Apply time boosts if date is present
+				if "date" in doc:
+					try:
+						# Document date boost, targeted at prioritizing most recent FAQs, with 50% being > 90 days
+						documentDate = datetime.date.fromisoformat(doc.get("date"))
+						documentAge = (current_date - documentDate).days
+						lam = np.log(2) / int(os.getenv("RAG_HP_RECENCYHALFLIFE", 90.0))
+						score *= np.exp(-lam * documentAge)
+
+						# Current season boost, targeted at prioritizing FAQs from the current season (since May 1st)
+						if documentDate >= datetime.date(current_date.year, 5, 1):
+							score *= int(os.getenv('RAG_HP_SEASONBOOST', 1.1))
+
+					except Exception:
+						# Incase of date parsing error, just ignore
+						pass  
+
+			# Append the (possibly modified) score and document to results
+			results.append((score, doc))
+
+		# Sort results by modified score in descending order
+		results.sort(key=lambda x: x[0], reverse=True)
 		
-		# Return the retrieved chunks
-		return retrieved
+		# Return the retrieved top k chunks
+		return [doc for score, doc in results[:topK]]
 
 	# Generate an answer using Gemini with the retrieved chunks as context
 	def _generateAnswer(self, question, topChunks) -> str:
@@ -90,12 +130,12 @@ class MCL_WikiRag():
 		# Combine chunks into context and create the prompt
 		contextText = "\n".join([f"{chunk['title']}: {chunk['content']}" for chunk in topChunks])
 		prompt = f"""
-		Instructions: 
-		\n- You are a helpful assistant for players on a minecraft server. 
+		You are a helpful assistant for players on a minecraft server. 
 		\n- Use the following wiki and Q&A context to answer the given question. 
-		\n- Do not hallucinate, and if you don't know the answer, just say you don't know.
+		\n- Do not hallucinate. If you don't know the answer, say you don't know.
 		\n- Provide a medium-length answer with details while being concise.
-		\n- Ignore any context that regards factions or raid world.
+		\n- Ignore any context that regards factions, the /f command, or raid world.
+		\n- Prefer FAQ chunks if present. If multiple answers conflict, choose the most recent one.
 		\n\nContext: {contextText}
 		\n\nQuestion: {question}
 		\n\nAnswer:"
