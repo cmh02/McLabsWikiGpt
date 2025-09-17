@@ -137,7 +137,7 @@ class MCL_WikiEmbedder():
 		embeddingsMatrix = np.vstack(embeddings).astype('float32')
 		faiss.normalize_L2(embeddingsMatrix)
 		self.index.add(embeddingsMatrix)
-		self.documents.extend([{"title": "Help Question", "content": chunk} for chunk in chunks])
+		self.documents.extend([{"title": "Help Question", "content": chunk, "source": "helpQA"} for chunk in chunks])
 
 		print(f"Added {len(chunks)} help questions to the index!")
 
