@@ -130,8 +130,10 @@ class MCL_WikiEmbedder():
 		# Turn Q&A pairs into chunks
 		chunks = [f"Q: {q}\nA: {a}" for q, a in helpQuestionPairs]
 
-		# Embed the chunks
-		embeddings = self.embedChunks(chunks)
+		# Embed the chunks in batches of 100 (gemini limit)
+		embeddings = []
+		for i in range(0, len(chunks), 100):
+			embeddings.extend(self.embedChunks(chunks[i:i+100]))
 
 		# Add to FAISS index and documents
 		embeddingsMatrix = np.vstack(embeddings).astype('float32')
