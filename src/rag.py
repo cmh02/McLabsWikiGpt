@@ -1,5 +1,5 @@
 '''
-MCLabs Wiki GPT - RAG Prompting and Response
+MCLabs Wiki RAG - RAG Prompting and Response
 
 Author: Chris Hinkson @cmh02
 '''

@@ -1,5 +1,5 @@
 '''
-MCLabs Wiki GPT - Flask API
+MCLabs Wiki RAG - Flask API
 
 Author: Chris Hinkson @cmh02
 '''
