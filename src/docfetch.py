@@ -121,19 +121,26 @@ class MCL_WikiEmbedder():
 		for line in helpQuestionList:
 
 			# Remove the log timestamp if present
-			if line.startswith("[") and "] " in line:
-				line = line.split("] ", 1)
-				doctime = line[0][1:].strip()
+			try:
+				if line.startswith("[") and "] " in line:
+					line = line.split("] ", 1)[1]
 
-			# Get the question, answer, and timestamp
-			doctime, question, answer = line.split("|||")
+				# Get the question, answer, and timestamp
+				doctime, question, answer = line.split("|||")
+			except Exception as e:
+				print(f"Exception `{e}` occured while parsing help question line: {line}. Skipping!")
+				continue
 			
 			# Determine if the doc has old unix (no period) or new unix (has period)
-			if "." in doctime:
-				# New format with period, in common unix timestamp format
-				doctime = float(doctime)
-			else:
-				doctime = float(doctime) / 1000.0
+			try:
+				if "." in doctime:
+					# New format with period, in common unix timestamp format
+					doctime = float(doctime)
+				else:
+					doctime = float(doctime) / 1000.0
+			except Exception as e:
+				print(f"Exception `{e}` occured while parsing timestamp in help question line: {line}. Skipping!")
+				continue
 
 			# Convert to ISO date
 			doctime = datetime.datetime.fromtimestamp(doctime).date().isoformat()
@@ -235,5 +242,3 @@ class MCL_WikiEmbedder():
 		for i in range(0, len(words), chunk_size - overlap):
 			chunks.append(" ".join(words[i:i+chunk_size]))
 		return chunks
-	
-
