@@ -40,7 +40,7 @@ async def ask(interaction: discord.Interaction, question: str):
 		
 		# Respond in Discord
 		if response.status_code == 200:
-			answer = data.get("response", "No answer returned.")
+			answer = data.get("answer", "No answer returned.")
 			await interaction.response.send_message(answer)
 		else:
 			await interaction.response.send_message(f"Error {response.status_code}: {data.get('error', 'Unknown error')}")
