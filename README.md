@@ -1,10 +1,10 @@
-# MCLabs Wiki GPT
+# MCLabs Wiki RAG
 
 ##### 🚧 Work in Progress: This project is currently under active development!
 
-Welcome to the [MCLabs](https://labs-mc.com/) (often shortened to MCL) Wiki GPT!
+Welcome to the [MCLabs](https://labs-mc.com/) (often shortened to MCL) Wiki RAG!
 
-This tool will implement RAG (Retrieval-Augmented Generation) to support prompting a GPT with specific context relative to our minecraft server from the community wiki. It will then offer an API for using the system via HTTP requests.
+This tool will implement RAG (Retrieval-Augmented Generation) to support prompting [Google Gemini ](https://gemini.google.com/app)with specific context relative to our minecraft server from the [community wiki](https://labs-mc.com/wiki/Main_Page). It will then offer an API for using the system via HTTP requests.
 
 ## Features
 
@@ -17,4 +17,12 @@ This tool will implement RAG (Retrieval-Augmented Generation) to support prompti
 
 ## Deployment
 
-This project is currently deployed using [Railway](https://railway.com/) with the entire GitHub Repo.
+This project currently has two user interfaces:
+
+* A minecraft in-game command built using [Skript](https://github.com/SkriptLang/Skript)
+* A custom [Discord](https://discord.com/) application that is available in our community server
+
+For the backend, I have created two [Railway](https://railway.com/) projects from the GitHub Repository:
+
+* The first project handles the backend API
+* The second project provides the discord bot
