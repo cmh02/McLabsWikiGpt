@@ -90,7 +90,12 @@ class MCL_WikiRag():
 		# Combine chunks into context and create the prompt
 		contextText = "\n".join([f"{chunk['title']}: {chunk['content']}" for chunk in topChunks])
 		prompt = f"""
-		You are a helpful assistant for players on a minecraft server. Use the following wiki and Q&A content to answer the given question. Do not hallucinate, and if you don't know the answer, just say you don't know. Be concise but complete.
+		Instructions: 
+		\n- You are a helpful assistant for players on a minecraft server. 
+		\n- Use the following wiki and Q&A context to answer the given question. 
+		\n- Do not hallucinate, and if you don't know the answer, just say you don't know.
+		\n- Provide a medium-length answer with details while being concise.
+		\n- Ignore any context that regards factions or raid world.
 		\n\nContext: {contextText}
 		\n\nQuestion: {question}
 		\n\nAnswer:"
