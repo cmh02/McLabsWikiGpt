@@ -108,6 +108,39 @@ class MCL_WikiEmbedder():
 
 		print(f"FAISS index has {self.index.ntotal} vectors")
 
+	# Function to load, chunk, embed, and index help questions
+	def fetchAndEmbedHelpQuestions(self, helpQuestionsFilePath: str):
+
+		# Load help questions from file
+		with open(helpQuestionsFilePath, "r") as helpQuestionFile:
+			helpQuestionList = [line.strip() for line in helpQuestionFile]
+
+		# Every two rows -> Q&A  pair -> combine into single chunk
+		helpQuestionPairs = []
+		for i in range(0, len(helpQuestionList), 2):
+
+			# Get the question and answer
+			question = helpQuestionList[i]
+			answer = helpQuestionList[i + 1] if i + 1 < len(helpQuestionList) else ""
+
+			# Remove the answer prefix if present
+			answer = answer.replace("|-> ", "")
+			helpQuestionPairs.append((question, answer))
+
+		# Turn Q&A pairs into chunks
+		chunks = [f"Q: {q}\nA: {a}" for q, a in helpQuestionPairs]
+
+		# Embed the chunks
+		embeddings = self.embedChunks(chunks)
+
+		# Add to FAISS index and documents
+		embeddingsMatrix = np.vstack(embeddings).astype('float32')
+		faiss.normalize_L2(embeddingsMatrix)
+		self.index.add(embeddingsMatrix)
+		self.documents.extend([{"title": "Help Question", "content": chunk} for chunk in chunks])
+
+		print(f"Added {len(chunks)} help questions to the index!")
+
 	# Save the FAISS index and documents to disk
 	def saveIndexAndDocuments(self):
 		# Save the index and documents for later use
