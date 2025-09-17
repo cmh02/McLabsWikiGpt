@@ -209,3 +209,6 @@ data/.DS_Store
 
 # Environmental Variables for Skript
 skript/mclwikirag_env.sk
+
+# Help Q&A
+helpqa/
