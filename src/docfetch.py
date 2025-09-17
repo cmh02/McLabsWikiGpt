@@ -95,7 +95,7 @@ class MCL_WikiEmbedder():
 
 			# Flatten chunks into documents with titles
 			self.documents.extend([
-				{"title": pageTitle, "content": chunkText}
+				{"title": pageTitle, "content": chunkText, "source": "playerwiki"}
 				for pageTitle, chunkList in allChunks.items()
 				for chunkText in chunkList
 			])
