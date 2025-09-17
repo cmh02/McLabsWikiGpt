@@ -47,8 +47,8 @@ InstanceWikiEmbedder.loadIndexAndDocuments()
 InstanceRag = MCL_WikiRag(client=client, wikiEmbedder=InstanceWikiEmbedder)
 
 # API Limits
-MAX_REQUESTS_PER_MINUTE = 15
-MAX_REQUESTS_PER_DAY = 1000
+MAX_REQUESTS_PER_MINUTE = 2000
+MAX_REQUESTS_PER_DAY = 10000
 
 '''
 API LIMITING
