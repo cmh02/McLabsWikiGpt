@@ -113,6 +113,12 @@ def query():
      
 	# Check API token
 	if data.get("api_token") != os.getenv("API_TOKEN"):
+            
+		# Print for debugging
+		if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+			print(f"Invalid API token attempt: {data.get('api_token')}")
+                  
+		# Return error
 		return jsonify({"error": "Invalid API token!"}), 401
 
 	# Get the question from the request
@@ -125,10 +131,20 @@ def query():
 
 	# If no question provided, return error
 	if not question:
+        # Print for debugging
+		if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+			print("No question provided in request")
+
+		# Return error
 		return jsonify({"error": "Missing 'question'"}), 400
 
 	# If question is too long, return error
 	if len(question) > 256:
+		# Print for debugging
+		if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+			print("Question is too long (max 256 characters)!")
+
+		# Return error
 		return jsonify({"errormessage": "Question is too long (max 256 characters)!", "errorcode": 3}), 400
 
 	# Get the response from the RAG pipeline and return

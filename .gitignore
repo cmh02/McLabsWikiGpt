@@ -206,3 +206,6 @@ data/.DS_Store
 
 # VS Code workspace files
 *.code-workspace
+
+# Environmental Variables for Skript
+skript/mclwikirag_env.sk
