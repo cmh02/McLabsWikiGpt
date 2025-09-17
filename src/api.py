@@ -113,6 +113,7 @@ def query():
 
 	# Print for debugging
 	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+		print(f"Received request: {request}")
 		print(f"Received request data: {data}")
 
 	# Check API token
