@@ -110,7 +110,11 @@ def query():
 
 	# Get the request data
 	data = request.get_json()
-     
+
+	# Print for debugging
+	if os.environ.get("MCL_DEBUG", "FALSE") == "TRUE":
+		print(f"Received request data: {data}")
+
 	# Check API token
 	if data.get("api_token") != os.getenv("API_TOKEN"):
             
