@@ -94,7 +94,7 @@ class MCL_WikiRag():
 			doc = self.wikiEmbedder.documents[index]
 
 			# Modify score based on document type
-			if doc.get("source") == "faq":
+			if doc.get("source") == "helpQA":
 				# Apply FAQ boost
 				score *= int(os.getenv('RAG_HP_FAQSCOREBOOST', 1.2))
 
