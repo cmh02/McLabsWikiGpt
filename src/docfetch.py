@@ -11,6 +11,7 @@ MODULE IMPORTS
 # System
 import os
 import pickle
+import datetime
 
 # Vector Database
 import faiss
@@ -95,7 +96,7 @@ class MCL_WikiEmbedder():
 
 			# Flatten chunks into documents with titles
 			self.documents.extend([
-				{"title": pageTitle, "content": chunkText, "source": "playerwiki"}
+				{"title": pageTitle, "content": chunkText, "source": "playerwiki", "date": "N/A"}
 				for pageTitle, chunkList in allChunks.items()
 				for chunkText in chunkList
 			])
@@ -117,31 +118,45 @@ class MCL_WikiEmbedder():
 
 		# Every two rows -> Q&A  pair -> combine into single chunk
 		helpQuestionPairs = []
-		for i in range(0, len(helpQuestionList), 2):
+		for line in helpQuestionList:
 
-			# Get the question and answer
-			question = helpQuestionList[i]
-			answer = helpQuestionList[i + 1] if i + 1 < len(helpQuestionList) else ""
+			# Remove the log timestamp if present
+			if line.startswith("[") and "] " in line:
+				line = line.split("] ", 1)
+				doctime = line[0][1:].strip()
+
+			# Get the question, answer, and timestamp
+			doctime, question, answer = line.split("|||")
+			
+			# Determine if the doc has old unix (no period) or new unix (has period)
+			if "." in doctime:
+				# New format with period, in common unix timestamp format
+				doctime = float(doctime)
+			else:
+				doctime = float(doctime) / 1000.0
+
+			# Convert to ISO date
+			doctime = datetime.datetime.fromtimestamp(doctime).date().isoformat()
 
 			# Remove the answer prefix if present
-			answer = answer.replace("|-> ", "")
-			helpQuestionPairs.append((question, answer))
+			helpQuestionPairs.append((doctime, question, answer))
 
 		# Turn Q&A pairs into chunks
-		chunks = [f"Q: {q}\nA: {a}" for q, a in helpQuestionPairs]
+		chunks = [f"T: {t}\nQ: {q}\nA: {a}" for t, q, a in helpQuestionPairs]
 
 		# Embed the chunks in batches of 100 (gemini limit)
 		embeddings = []
 		for i in range(0, len(chunks), 100):
 			embeddings.extend(self.embedChunks(chunks[i:i+100]))
 
-		# Add to FAISS index and documents
+		# Add to FAISS index
 		embeddingsMatrix = np.vstack(embeddings).astype('float32')
 		faiss.normalize_L2(embeddingsMatrix)
 		self.index.add(embeddingsMatrix)
-		self.documents.extend([{"title": "Help Question", "content": chunk, "source": "helpQA"} for chunk in chunks])
 
-		print(f"Added {len(chunks)} help questions to the index!")
+		# Add to documents with title "Help Question", source "helpQA", and date
+		self.documents.extend([{"title": "Help Question", "content": chunk, "source": "helpQA", "date": t} for t, chunk in zip([t for t, q, a in helpQuestionPairs], chunks)])
+		print(f"Added {len(chunks)} help questions to the index and documents!")
 
 	# Save the FAISS index and documents to disk
 	def saveIndexAndDocuments(self):
@@ -220,3 +235,5 @@ class MCL_WikiEmbedder():
 		for i in range(0, len(words), chunk_size - overlap):
 			chunks.append(" ".join(words[i:i+chunk_size]))
 		return chunks
+	
+
