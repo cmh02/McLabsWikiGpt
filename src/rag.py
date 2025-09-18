@@ -132,10 +132,12 @@ class MCL_WikiRag():
 		prompt = f"""
 		You are a helpful assistant for players on a minecraft server. 
 		\n- Use the following wiki and Q&A context to answer the given question. 
-		\n- Do not hallucinate. If you don't know the answer, say you don't know.
 		\n- Provide a medium-length answer with details while being concise.
-		\n- Ignore any context that regards factions, the /f command, or raid world.
+		\n- Do not hallucinate. If you don't know the answer, only say 'I don't know'.
 		\n- Prefer FAQ chunks if present. If multiple answers conflict, choose the most recent one.
+		\n- Ignore any context that regards factions, the /f command, or raid world.
+		\n- Never refer to 'chems' as 'chemicals', only use the word 'chems'.
+		\n- Refer to the Town world as the Overworld and the Company world as the Underworld.
 		\n\nContext: {contextText}
 		\n\nQuestion: {question}
 		\n\nAnswer:"
