@@ -20,6 +20,7 @@ import numpy as np
 
 # Google API
 from google import genai
+from google.genai import types
 
 # MCL Packages
 from src.docfetch import MCL_WikiEmbedder
@@ -68,7 +69,8 @@ class MCL_WikiRag():
 		# Get embedding using API
 		response = self.client.models.embed_content(
 			model="text-embedding-004",
-			contents=[query]
+			contents=[query],
+			config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
 		)
 		
 		# Return embedding as a numpy float32 vector
