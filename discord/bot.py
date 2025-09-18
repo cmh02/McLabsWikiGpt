@@ -23,7 +23,7 @@ intents = discord.Intents.default()
 intents.messages = True
 
 # Initialize bot
-bot = commands.Bot(command_prefix="/", intents=intents)
+bot = commands.Bot(command_prefix="/", intents=intents, activity=discord.Streaming(name="MCLabs Wiki", url="https://labs-mc.com/wiki/Main_Page"))
 
 @bot.event
 async def on_ready():
