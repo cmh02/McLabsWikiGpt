@@ -2,6 +2,41 @@
 MCL Wiki RAG Skript
 Author: @cmh02
 Version: 1.0
+
+This skript will provide a simple handler for sending questions to the MCL Wiki RAG API.
+
+There are two main ways that you can use the API through this skript:
+
+	1. The first way is to allow the API handler to message the player after a response is received.
+
+		Syntax: run section {mwr::httpsend} async with <player>, <str>, <bool>
+
+		Example: run section {mwr::httpsend} async with player, "What is Minecraft?", true
+
+		Desc: This will send the question "What is Minecraft?" to the API and 
+				directly message the player with the response when it is received.
+
+	2. The second way is to wait for the response from the API and handle it yourself.
+
+		Syntax: run section {mwr::httpsend} async with <player>, <str>, <bool> and store result in <var> and wait
+
+		Example: run section {mwr::httpsend} async with player, "What is Minecraft?", true and store result in {_response} and wait
+
+		Desc: This will send the question "What is Minecraft?" to the API and
+				store the response in the variable {_response} when it is received.
+				Note that, because of the limitations of Skript-Reflect, you must
+				wait for the response when running a section async.
+
+The proper choice of the above methods depends on your use case. Primarily, you will find that Skript's
+restrictions on async handling within triggers will be the limiting factor. If you need to call the API
+from within a trigger, you will likely need to use the first method. If you are calling the API from
+somewhere that is safe to wait (such as in an already-main-thread-async function), then you can use the
+second method to wait for a response.
+
+The final output of this section, whether it messages the player or returns a value, will be a string
+that is either the response from the API or an error message if something went wrong. The API response
+will have some formatting removed, but it is likely you will want to customize this response further
+depending on the exact use case.
 ###
 
 # Skript-Wide Options
@@ -24,127 +59,151 @@ import:
 	com.google.gson.Gson
 	com.google.gson.JsonObject
 
-
 # Skript-Reflect Section for HTTP Requests
 on load:
-	create new section with {_player}, {_question} stored in {mwr::httpsend}:
+	create new section with {_player}, {_question}, {_messagePlayerDirectly} stored in {mwr::httpsend}:
 
-		# Create JSON object for request body
-		set {_jsonRequestBody} to try new JSONObject()
-		try {_jsonRequestBody}.put("api_token", mwr_getEnvironmentalVariable("API_TOKEN"))
-		try {_jsonRequestBody}.put("question", {_question})
-		try {_jsonRequestBody}.put("include_context", "False")
-		if the last java exception is set:
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when creating JSON request body! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+		# Create response str
+		set {_responseString} to ""
 
-		# Create URL and open connection
-		set {_apiBackendUrl} to try new URL(mwr_getEnvironmentalVariable("RAILWAY_PUBLIC_DOMAIN"))
-		set {_apiConnection} to try {_apiBackendUrl}.openConnection()
-		if the last java exception is set:
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when opening HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
-
-		# Configure connection for POST request
-		try {_apiConnection}.setRequestMethod("POST")
-		try {_apiConnection}.setRequestProperty("Content-Type", "application/json")
-		try {_apiConnection}.setRequestProperty("Accept", "application/json")
-		try {_apiConnection}.setInstanceFollowRedirects(true)
-		if the last java exception is set:
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when configuring HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
-
-		# Write to the connection via OutputStream
-		try {_apiConnection}.setDoOutput(true)
-		set {_outputStream} to try {_apiConnection}.getOutputStream()
-		try {_outputStream}.write({_jsonRequestBody}.toString().getBytes())
-		if the last java exception is set:
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when writing to HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
-
-		# Get the response code and message
-		set {_responseCode} to try {_apiConnection}.getResponseCode()
-		set {_responseMessage} to try {_apiConnection}.getResponseMessage()
-		if the last java exception is set:
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when getting HTTP response code/message! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
-
-		# If we have an error response, send message to player and log
-		if {_responseCode} is not 200:
-
-			# Message player and log
-			mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-			mwr_messageLogFile("&cError: An error occured when getting a HTTP response! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%HTTP Code: %{_responseCode}% %nl%HTTP Message: %{_responseMessage}% %nl%Error: %the last java exception%", true, "severe")
-
+		# Check if question is set, if not return error
+		if {_question} is not set:
+			mwr_messageLogFile("&cError: No question was provided to API handler! %nl%Player: %{_player}%", true, "severe")
+			set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
 		else:
 
-			# Open InputStream to read the response
-			set {_inputStream} to try {_apiConnection}.getInputStream()
-			set {_bufferedInputReader} to try new BufferedReader(new InputStreamReader({_inputStream}))
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when getting input stream! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+			# If player is none, then we default to returning the response instead of messaging player
+			if {_player} is not set:
+				set {_messagePlayerDirectly} to false
 
-			# Read the response body
-			set {_responseString} to ""
-			set {_line} to try {_bufferedInputReader}.readLine()
-			while {_line} is set:
-				set {_responseString} to {_responseString} + {_line}
+			# Create JSON object for request body
+			set {_jsonRequestBody} to try new JSONObject()
+			try {_jsonRequestBody}.put("api_token", mwr_getEnvironmentalVariable("API_TOKEN"))
+			try {_jsonRequestBody}.put("question", {_question})
+			try {_jsonRequestBody}.put("include_context", "False")
+			if the last java exception is set:
+				mwr_messageLogFile("&cError: An error occured when creating JSON request body! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			# Create URL and open connection
+			set {_apiBackendUrl} to try new URL(mwr_getEnvironmentalVariable("RAILWAY_PUBLIC_DOMAIN"))
+			set {_apiConnection} to try {_apiBackendUrl}.openConnection()
+			if the last java exception is set:
+				mwr_messageLogFile("&cError: An error occured when opening HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			# Configure connection for POST request
+			try {_apiConnection}.setRequestMethod("POST")
+			try {_apiConnection}.setRequestProperty("Content-Type", "application/json")
+			try {_apiConnection}.setRequestProperty("Accept", "application/json")
+			try {_apiConnection}.setInstanceFollowRedirects(true)
+			if the last java exception is set:
+				mwr_messageLogFile("&cError: An error occured when configuring HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			# Write to the connection via OutputStream
+			try {_apiConnection}.setDoOutput(true)
+			set {_outputStream} to try {_apiConnection}.getOutputStream()
+			try {_outputStream}.write({_jsonRequestBody}.toString().getBytes())
+			if the last java exception is set:
+				mwr_messageLogFile("&cError: An error occured when writing to HTTP connection! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			# Get the response code and message
+			set {_responseCode} to try {_apiConnection}.getResponseCode()
+			set {_responseMessage} to try {_apiConnection}.getResponseMessage()
+			if the last java exception is set:
+				mwr_messageLogFile("&cError: An error occured when getting HTTP response code/message! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			# If we have an error response, send message to player and log
+			if {_responseCode} is not 200:
+
+				# Message player and log
+				mwr_messageLogFile("&cError: An error occured when getting a HTTP response! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%HTTP Code: %{_responseCode}% %nl%HTTP Message: %{_responseMessage}% %nl%Error: %the last java exception%", true, "severe")
+				set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+				exit 2 conditionals
+
+			else:
+
+				# Open InputStream to read the response
+				set {_inputStream} to try {_apiConnection}.getInputStream()
+				set {_bufferedInputReader} to try new BufferedReader(new InputStreamReader({_inputStream}))
+				if the last java exception is set:
+					mwr_messageLogFile("&cError: An error occured when getting input stream! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+					set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+					exit 3 conditionals
+
+				# Read the response body
+				set {_responseString} to ""
 				set {_line} to try {_bufferedInputReader}.readLine()
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when reading HTTP response as string! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				while {_line} is set:
+					set {_responseString} to {_responseString} + {_line}
+					set {_line} to try {_bufferedInputReader}.readLine()
+				if the last java exception is set:
+					mwr_messageLogFile("&cError: An error occured when reading HTTP response as string! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+					set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+					exit 3 conditionals
 
-			# Read the response into a json object using Gson
-			set {_Gson} to try new Gson()
-			set {_responseJson} to try {_Gson}.fromJson({_responseString}, JsonObject.class)
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when parsing HTTP response string as JSON! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				# Read the response into a json object using Gson
+				set {_Gson} to try new Gson()
+				set {_responseJson} to try {_Gson}.fromJson({_responseString}, JsonObject.class)
+				if the last java exception is set:
+					mwr_messageLogFile("&cError: An error occured when parsing HTTP response string as JSON! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+					set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+					exit 3 conditionals
 
-			# Extract the "answer" field from the JSON response
-			set {_responseString} to try {_responseJson}.get("answer").getAsString()
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when extracting 'answer' from JSON response! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+				# Extract the "answer" field from the JSON response
+				set {_responseString} to try {_responseJson}.get("answer").getAsString()
+				if the last java exception is set:
+					mwr_messageLogFile("&cError: An error occured when extracting 'answer' from JSON response! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+					set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+					exit 3 conditionals
 
-			broadcast raw "raw: %{_responseString}%"
+				# Strip quotes from ends of response string
+				set {_responseString} to try {_responseString}.substring(0, {_responseString}.length() - 1)
 
-			# Strip quotes from ends of response string
-			set {_responseString} to try {_responseString}.substring(0, {_responseString}.length() - 1)
+				# Fix lists by replacing "\n* " with "\n - "
+				set {_responseString} to try {_responseString}.replaceAll("(?m)^\s*\*{1}", "$0- ")
 
-			# Fix lists by replacing "\n* " with "\n - "
-			set {_responseString} to try {_responseString}.replaceAll("(?m)^\s*\*{1}", "$0- ")
+				# Remove bold, underline, italics headings
+				set {_responseString} to try {_responseString}.replaceAll("[*_#`]", "")
 
-			# Remove bold, underline, italics headings
-			set {_responseString} to try {_responseString}.replaceAll("[*_#`]", "")
-
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when stripping formatting from response string! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
-
-			# Send body to player for now
-			mwr_messagePlayer({_player}, "&f%{_responseString}%")
+				if the last java exception is set:
+					mwr_messageLogFile("&cError: An error occured when stripping formatting from response string! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+					set {_responseString} to "&cError: An error has occured when generating a response. Please contact a developer for further assistance!"
+					exit 3 conditionals
 
 		# Close streams
-		if {_outputStream} is set:
-			try {_outputStream}.close()
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when closing output stream! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+		mwr_cleanupStreams({_outputStream}, {_inputStream}, {_bufferedInputReader})
 
-		if {_bufferedInputReader} is set:
-			try {_bufferedInputReader}.close()
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when closing buffered reader stream! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+		# Determine message or return (value will be response from API or error message)
+		if {_messagePlayerDirectly} is true:
+			mwr_messagePlayer({_player}, {_responseString})
+		else:
+			return {_responseString}
 
-		if {_inputStream} is set:
-			try {_inputStream}.close()
-			if the last java exception is set:
-				mwr_messagePlayer({_player}, "&cAn error has occured when generating a response. Please contact a developer for further assistance!")
-				mwr_messageLogFile("&cError: An error occured when closing input stream! %nl%Player: %{_player}% %nl%Question: %{_question}% %nl%Error: %the last java exception%", true, "severe")
+# Stream Cleanup Handler
+function mwr_cleanupStreams(outputStream: object, inputStream: object, bufferedReader: object):
+	if {_outputStream} is set:
+		try {_outputStream}.close()
+		if the last java exception is set:
+			mwr_messageLogFile("&cError: An error occured when closing output stream! %nl%Error: %the last java exception%", true, "severe")
 
+	if {_inputStream} is set:
+		try {_inputStream}.close()
+		if the last java exception is set:
+			mwr_messageLogFile("&cError: An error occured when closing input stream! %nl%Error: %the last java exception%", true, "severe")
+
+	if {_bufferedReader} is set:
+		try {_bufferedReader}.close()
+		if the last java exception is set:
+			mwr_messageLogFile("&cError: An error occured when closing buffered reader stream! %nl%Error: %the last java exception%", true, "severe")
 
 #####################
 # UTILITY FUNCTIONS #
@@ -166,9 +225,9 @@ function mwr_messagePlayer(player: player, message: strings="Error in Player Mes
 function mwr_postApi(player: player, question: string):
 
 	# Make async http request with Skript-Reflect
-	run section {mwr::httpsend} async with {_player}, {_question}
+	run section {mwr::httpsend} async with {_player}, {_question}, true
 
-
+# Command to test API, admin access only
 command /mwr [<text>]:
 	permission: skript.admin
 	permission message: {@labsprefix} &cPermission denied.
