@@ -8,13 +8,13 @@ This tool will implement RAG (Retrieval-Augmented Generation) to support prompti
 
 ## Feature Overview
 
-* Data Collection
+* [Data Collection](#data-collection)
   * Fetches and chunks [MediaWiki](https://www.mediawiki.org/wiki/API) articles automatically
   * Loads dump logs from our [Mongo](https://www.mongodb.com/) database and chunks Q&A pairs
-* Embedding and Indexing
+* [Embedding and Indexing](#embedding-and-indexing)
   * Embeds content using [Google Gemini embeddings](https://ai.google.dev/gemini-api/docs/embeddings)
   * Stores vectors in a [FAISS index](https://github.com/facebookresearch/faiss/wiki/Faiss-indexes) for fast similarity search
-* Query Handling
+* [Query Handling](query-handling)
   * Uses [k-top searching](https://github.com/facebookresearch/faiss/wiki/Getting-started#searching) to find the most relevant context material for a query
   * Ranks matched context chunks based on specialized weighting for source and origin time
   * Lightweight [Flask API](https://flask.palletsprojects.com/en/stable/) served with [Gunicorn](https://gunicorn.org/) for production-ready handling of RAG queries
