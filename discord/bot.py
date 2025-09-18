@@ -41,12 +41,14 @@ async def ask(interaction: discord.Interaction, question: str):
 		# Respond in Discord
 		if response.status_code == 200:
 			answer = data.get("answer", "No answer returned.")
-			await interaction.response.send_message(answer)
+			await interaction.response.send_message(content=answer, ephemeral=True)
 		else:
-			await interaction.response.send_message(f"Error {response.status_code}: {data.get('error', 'Unknown error')}")
-			
+			await interaction.response.send_message(content=f"An error has occured while processing your request. Please contact a developer for further assistance!", ephemeral=True)
+			print(f"Error {response.status_code}: {data.get('error', 'Unknown error')}")
+
 	except Exception as e:
-		await interaction.response.send_message(f"Exception: {e}")
+		await interaction.response.send_message(content=f"An error has occured while processing your request. Please contact a developer for further assistance!", ephemeral=True)
+		print(f"Exception: {e}")
 
 # Run the bot
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
