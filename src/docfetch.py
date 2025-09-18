@@ -186,7 +186,7 @@ class MCL_WikiEmbedder():
 		
 		# Make embedding request and return as numpy array
 		response = self.client.models.embed_content(
-			model="text-embedding-005",
+			model="text-embedding-004",
 			contents=chunks,
 			config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
 		)

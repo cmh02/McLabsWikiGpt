@@ -68,7 +68,7 @@ class MCL_WikiRag():
 		
 		# Get embedding using API
 		response = self.client.models.embed_content(
-			model="text-embedding-005",
+			model="text-embedding-004",
 			contents=[query],
 			config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
 		)
