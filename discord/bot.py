@@ -30,7 +30,7 @@ async def on_ready():
     print(f"Discord bot is ready!")
     await bot.tree.sync()
 
-@bot.tree.command(name="ask", description="Ask WikiGPT!")
+@bot.tree.command(name="ask", description="Ask me anything!")
 async def ask(interaction: discord.Interaction, question: str):
 	try:
 		# Make API request to the API endpoint and get response
@@ -40,7 +40,7 @@ async def ask(interaction: discord.Interaction, question: str):
 		
 		# Respond in Discord
 		if response.status_code == 200:
-			answer = data.get("answer", "No answer returned.")
+			answer = data.get("answer", "An error has occured while processing your request. Please contact a developer for further assistance!")
 			await interaction.response.send_message(content=answer, ephemeral=True)
 		else:
 			await interaction.response.send_message(content=f"An error has occured while processing your request. Please contact a developer for further assistance!", ephemeral=True)
